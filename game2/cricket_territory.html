@@ -1,0 +1,634 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>鳴蟲領域主權爭奪戰！</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: linear-gradient(135deg, #bfe9ff 0%, #fff6d8 100%);
+            font-family: "Microsoft JhengHei", "PingFang TC", "Heiti TC", sans-serif;
+            color: white;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            overflow: hidden;
+            user-select: none;
+        }
+
+        #game-container {
+            width: 900px;
+            height: 760px;
+            background: linear-gradient(#c9f7c0, #6fcf6f);
+            position: relative;
+            margin-top: 20px;
+            border: 10px solid #f2a154;
+            border-radius: 30px;
+            box-shadow: 0 12px 24px rgba(0,0,0,0.3);
+            touch-action: manipulation;
+            overflow: hidden;
+        }
+
+        h1 {
+            margin: 10px 0 0 0;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+        }
+
+        /* 頂部狀態列 */
+        .status-bar {
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            padding: 18px;
+            background: rgba(0,0,0,0.45);
+            font-size: 27px;
+            font-weight: bold;
+        }
+
+        #game-phase-txt {
+            color: #ffe066;
+            font-size: 29px;
+            text-shadow: 0 0 6px rgba(255,224,102,0.6);
+        }
+
+        /* 雙方氣勢條 */
+        .power-section {
+            display: flex;
+            width: 100%;
+            height: 46px;
+            background: #5a3d22;
+            border-bottom: 4px solid #4a3016;
+            box-sizing: border-box;
+        }
+
+        .power-bar {
+            height: 100%;
+            transition: width 0.1s ease;
+            display: flex;
+            align-items: center;
+            font-weight: bold;
+            padding: 0 18px;
+            box-sizing: border-box;
+            font-size: 21px;
+        }
+        #bar-p1 {
+            width: 50%;
+            background: linear-gradient(to right, #4098e7, #74b9ff);
+            justify-content: flex-start;
+        }
+        #bar-p2 {
+            width: 50%;
+            background: linear-gradient(to left, #ff9f43, #ffb86b);
+            justify-content: flex-end;
+        }
+
+        /* 草地對決舞台 */
+        .field {
+            width: 100%;
+            height: 460px;
+            position: relative;
+            background: radial-gradient(circle, #7bd66a, #4fae4a);
+            overflow: hidden;
+        }
+
+        /* 領域中央線防線 */
+        .center-line {
+            position: absolute;
+            left: 50%;
+            top: 0;
+            width: 4px;
+            height: 100%;
+            background: rgba(255,255,255,0.2);
+        }
+
+        /* 蟋蟀角色（放大版） */
+        .cricket {
+            width: 230px;
+            height: 230px;
+            position: absolute;
+            bottom: 60px;
+            font-size: 150px;
+            text-align: center;
+            line-height: 230px;
+            /* 調整為對移動響應更靈敏的 transition */
+            transition: left 0.15s ease-out, right 0.15s ease-out, transform 0.2s; 
+        }
+        
+        /* 藍方蟋蟀：帶有藍色光暈 */
+        #cricket-p1 { 
+            left: 70px; 
+            transform: scaleX(-1); 
+            filter: drop-shadow(0 0 25px rgba(52, 152, 219, 0.9));
+        } 
+        /* 黃方蟋蟀：帶有橘色光暈 */
+        #cricket-p2 { 
+            right: 70px; 
+            filter: drop-shadow(0 0 25px rgba(230, 126, 34, 0.9));
+        } 
+
+        /* 碰撞特效：對決瞬間在中線爆出的圖案 */
+        #clash-effect {
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%) scale(0);
+            font-size: 105px;
+            opacity: 0;
+            z-index: 6;
+            filter: drop-shadow(0 0 10px rgba(255,255,255,0.8));
+            pointer-events: none;
+        }
+        #clash-effect.pop {
+            animation: clashPop 0.6s ease-out forwards;
+        }
+        @keyframes clashPop {
+            0%   { transform: translate(-50%, -50%) scale(0.2); opacity: 0; }
+            30%  { transform: translate(-50%, -50%) scale(1.3); opacity: 1; }
+            100% { transform: translate(-50%, -50%) scale(1.6); opacity: 0; }
+        }
+
+        /* 汗水特效 */
+        .sweat {
+            position: absolute;
+            font-size: 50px;
+            opacity: 0;
+            top: -30px;
+            left: 75px;
+            filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
+        }
+
+        /* 動畫效果 */
+        .vibrate { animation: shock 0.05s infinite alternate; }
+        @keyframes shock {
+            0% { transform: translateY(2px) scaleX(-1); }
+            100% { transform: translateY(-2px) scaleX(-1); }
+        }
+        .vibrate-p2 { animation: shock2 0.05s infinite alternate; }
+        @keyframes shock2 {
+            0% { transform: translateY(2px); }
+            100% { transform: translateY(-2px); }
+        }
+
+        /* 平板專用圓形連打按鈕 */
+        /* 控制列：獨立於場地之下，不再遮住蟋蟀 */
+        .control-bar {
+            display: flex;
+            justify-content: space-between;
+            padding: 18px 36px;
+            background: rgba(63, 41, 20, 0.35);
+            box-sizing: border-box;
+        }
+
+        .touch-btn {
+            width: 140px;
+            height: 140px;
+            border-radius: 50%;
+            border: 5px solid white;
+            font-size: 26px;
+            font-weight: bold;
+            color: white;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            box-shadow: 0 8px 15px rgba(0,0,0,0.4);
+            z-index: 5;
+            touch-action: manipulation;
+            transition: transform 0.05s ease;
+        }
+        .touch-btn:active {
+            transform: scale(0.92);
+        }
+        #touch-btn-p1 {
+            background: linear-gradient(135deg, #4098e7, #74b9ff);
+        }
+        #touch-btn-p2 {
+            background: linear-gradient(135deg, #ff9f43, #ffb86b);
+        }
+        .touch-btn span {
+            font-size: 16px;
+            margin-top: 5px;
+            opacity: 0.85;
+        }
+
+        /* 畫面覆蓋層 */
+        .overlay {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(63, 41, 20, 0.9);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 10;
+            text-align: center;
+            padding: 40px;
+            box-sizing: border-box;
+        }
+
+        .overlay h2 {
+            font-size: 38px;
+            margin: 0 0 10px 0;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #ffcc66, #ff9f43);
+            color: #4a2e12;
+            border: none;
+            padding: 20px 50px;
+            font-size: 28px;
+            border-radius: 40px;
+            cursor: pointer;
+            margin-top: 20px;
+            font-weight: bold;
+            box-shadow: 0 6px 12px rgba(0,0,0,0.35);
+        }
+        .btn:hover { background: linear-gradient(135deg, #ffb86b, #ff8c3f); }
+
+        .edu-box {
+            background: rgba(255,255,255,0.15);
+            border-left: 8px solid #7ed957;
+            padding: 18px 22px;
+            margin: 20px 0;
+            border-radius: 16px;
+            max-width: 680px;
+            text-align: left;
+            font-size: 20px;
+            line-height: 1.8;
+        }
+
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body>
+
+    <div id="game-container">
+        <div class="status-bar">
+            <div style="color: #3498db;">藍方 (A連打)</div>
+            <div id="game-phase-txt">準備對決</div>
+            <div style="color: #e67e22;">黃方 (L連打)</div>
+        </div>
+
+        <div class="power-section">
+            <div id="bar-p1" class="power-bar">氣勢: 50%</div>
+            <div id="bar-p2" class="power-bar">氣勢: 50%</div>
+        </div>
+
+        <div class="field">
+            <div class="center-line"></div>
+            
+            <div id="cricket-p1" class="cricket">
+                🦗
+                <span id="sweat-p1" class="sweat">💦</span>
+            </div>
+            
+            <div id="cricket-p2" class="cricket">
+                🦗
+                <span id="sweat-p2" class="sweat">💦</span>
+            </div>
+
+            <div id="clash-effect">💥</div>
+        </div>
+
+        <div class="control-bar">
+            <div id="touch-btn-p1" class="touch-btn hidden">藍方點我！<span>或按 [A]</span></div>
+            <div id="touch-btn-p2" class="touch-btn hidden">黃方點我！<span>或按 [L]</span></div>
+        </div>
+
+        <div id="start-screen" class="overlay">
+            <h2>🦗 蟋蟀爭地盤！</h2>
+            <div class="edu-box">
+                1️⃣ 狂點按鈕 10 秒，氣勢越高越好！<br>
+                2️⃣ 時間到雙方自動衝撞，氣勢高的一方獲勝！
+            </div>
+            <button class="btn" onclick="startTerritoryGame()">開始對決！</button>
+        </div>
+
+        <div id="end-screen" class="overlay hidden">
+            <h2 id="winner-title">🎉 領域爭奪結束 🎉</h2>
+            <p id="winner-desc"></p>
+            
+            <div class="edu-box">
+                <strong>💡 鳴蟲微科學：生命教育篇</strong><br>
+                在真正的蟋蟀世界中，領域競爭其實有一套<b>「不戰而屈人之兵」</b>的禮儀。當兩隻公蟋蟀相遇，牠們會先張大顎、瘋狂拍動觸角、並發出響亮的「警示歌聲」來比拼氣勢。一旦其中一方發現對方實力比較強，牠就會<b>主動認輸、轉頭逃跑</b>，獲勝的一方也不會追擊。這種和平的場機制，能讓彼此都不受傷，是大自然非常高明的生存智慧喔！
+            </div>
+            <button class="btn" onclick="resetGame()">重新捍衛領域</button>
+        </div>
+    </div>
+
+    <script>
+        const gamePhaseTxt = document.getElementById('game-phase-txt');
+        const barP1 = document.getElementById('bar-p1');
+        const barP2 = document.getElementById('bar-p2');
+        const cricketP1 = document.getElementById('cricket-p1');
+        const cricketP2 = document.getElementById('cricket-p2');
+        const sweatP1 = document.getElementById('sweat-p1');
+        const sweatP2 = document.getElementById('sweat-p2');
+        const clashEffect = document.getElementById('clash-effect');
+        const startScreen = document.getElementById('start-screen');
+        const endScreen = document.getElementById('end-screen');
+        const btnTouchP1 = document.getElementById('touch-btn-p1');
+        const btnTouchP2 = document.getElementById('touch-btn-p2');
+
+        let phase = 'idle'; 
+        let p1Clicks = 0;
+        let p2Clicks = 0;
+        let p1Power = 50;
+        let p2Power = 50;
+        let phaseTimer;
+        let countdownTime = 10;
+
+        // --- 防作弊狀態鎖（確保放開按鍵才能按下一發） ---
+        let p1KeyDown = false;
+        let p2KeyDown = false;
+        let p1TouchActive = false;
+        let p2TouchActive = false;
+
+        // --- Web Audio API 音效合成器 ---
+        let audioCtx = null;
+        let cricketSoundInterval = null;
+
+        function initAudio() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+        }
+
+        function playMashSound() {
+            // 每次點擊都模擬一次短促的蟋蟀「唧」聲（與對決階段同一種音色，但更短、更單一）
+            if (!audioCtx) return;
+            let startTime = audioCtx.currentTime;
+            for (let i = 0; i < 2; i++) {
+                let t = startTime + (i * 0.02);
+                let osc = audioCtx.createOscillator();
+                let gain = audioCtx.createGain();
+
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(4200 + Math.random() * 400, t);
+
+                gain.gain.setValueAtTime(0.1, t);
+                gain.gain.exponentialRampToValueAtTime(0.001, t + 0.015);
+
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+
+                osc.start(t);
+                osc.stop(t + 0.015);
+            }
+        }
+
+        function startCricketChirp() {
+            if (!audioCtx || cricketSoundInterval) return;
+
+            cricketSoundInterval = setInterval(() => {
+                for (let i = 0; i < 4; i++) {
+                    let startTime = audioCtx.currentTime + (i * 0.015);
+                    let osc = audioCtx.createOscillator();
+                    let gain = audioCtx.createGain();
+
+                    osc.type = 'triangle'; 
+                    osc.frequency.setValueAtTime(4500, startTime); 
+
+                    gain.gain.setValueAtTime(0.08, startTime);
+                    gain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.012);
+
+                    osc.connect(gain);
+                    gain.connect(audioCtx.destination);
+
+                    osc.start(startTime);
+                    osc.stop(startTime + 0.012);
+                }
+            }, 80); 
+        }
+
+        function stopCricketChirp() {
+            if (cricketSoundInterval) {
+                clearInterval(cricketSoundInterval);
+                cricketSoundInterval = null;
+            }
+        }
+
+        // --- 輸入處理控制 ---
+        function handleP1Click() {
+            if (phase !== 'mash') return;
+            p1Clicks++;
+            calculatePower();
+            playMashSound();
+        }
+
+        function handleP2Click() {
+            if (phase !== 'mash') return;
+            p2Clicks++;
+            calculatePower();
+            playMashSound();
+        }
+
+        // 鍵盤防長按防禦機制
+        window.addEventListener('keydown', (e) => {
+            if (e.repeat) return; // 阻擋系統重複觸發
+            if ((e.key === 'a' || e.key === 'A') && !p1KeyDown) {
+                p1KeyDown = true;
+                handleP1Click();
+            }
+            if ((e.key === 'l' || e.key === 'L') && !p2KeyDown) {
+                p2KeyDown = true;
+                handleP2Click();
+            }
+        });
+
+        window.addEventListener('keyup', (e) => {
+            if (e.key === 'a' || e.key === 'A') p1KeyDown = false;
+            if (e.key === 'l' || e.key === 'L') p2KeyDown = false;
+        });
+
+        // 平板觸控防長按機制 (必需要放開才能觸發下一次 touchstart)
+        btnTouchP1.addEventListener('touchstart', (e) => { 
+            e.preventDefault(); 
+            if (!p1TouchActive) {
+                p1TouchActive = true;
+                handleP1Click();
+            }
+        });
+        btnTouchP1.addEventListener('touchend', () => { p1TouchActive = false; });
+
+        btnTouchP2.addEventListener('touchstart', (e) => { 
+            e.preventDefault(); 
+            if (!p2TouchActive) {
+                p2TouchActive = true;
+                handleP2Click();
+            }
+        });
+        btnTouchP2.addEventListener('touchend', () => { p2TouchActive = false; });
+
+        // 電腦滑鼠相容與點擊防長按
+        let p1MouseDown = false;
+        let p2MouseDown = false;
+        btnTouchP1.addEventListener('mousedown', (e) => { 
+            if (!p1MouseDown) { p1MouseDown = true; handleP1Click(); }
+        });
+        window.addEventListener('mouseup', () => { p1MouseDown = false; p2MouseDown = false; });
+        btnTouchP2.addEventListener('mousedown', (e) => { 
+            if (!p2MouseDown) { p2MouseDown = true; handleP2Click(); }
+        });
+
+
+        function calculatePower() {
+            let total = p1Clicks + p2Clicks;
+            if (total === 0) return;
+            
+            p1Power = Math.round((p1Clicks / total) * 100);
+            p2Power = 100 - p1Power;
+
+            barP1.style.width = p1Power + '%';
+            barP1.innerText = `氣勢: ${p1Power}%`;
+            barP2.style.width = p2Power + '%';
+            barP2.innerText = `氣勢: ${p2Power}%`;
+        }
+
+        function startTerritoryGame() {
+            initAudio();
+            if (audioCtx && audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+
+            startScreen.classList.add('hidden');
+            endScreen.classList.add('hidden');
+            
+            btnTouchP1.classList.remove('hidden');
+            btnTouchP2.classList.remove('hidden');
+            
+            phase = 'mash';
+            countdownTime = 10;
+            p1Clicks = 5; 
+            p2Clicks = 5;
+            calculatePower();
+            
+            cricketP1.style.transition = 'left 0.1s linear, transform 0.2s';
+            cricketP2.style.transition = 'right 0.1s linear, transform 0.2s';
+            cricketP1.style.left = '70px';
+            cricketP2.style.right = '70px';
+            cricketP1.style.transform = 'scaleX(-1)';
+            cricketP2.style.transform = 'scaleX(1)';
+            sweatP1.style.opacity = 0;
+            sweatP2.style.opacity = 0;
+            clashEffect.classList.remove('pop');
+
+            phaseTimer = setInterval(() => {
+                countdownTime--;
+                gamePhaseTxt.innerText = `🔥 瘋狂連打中！ ${countdownTime}s`;
+                
+                if(countdownTime <= 0) {
+                    clearInterval(phaseTimer);
+                    startFightPhase();
+                }
+            }, 1000);
+            gamePhaseTxt.innerText = `🔥 瘋狂連打中！ ${countdownTime}s`;
+        }
+
+        function startFightPhase() {
+            phase = 'fight';
+            gamePhaseTxt.innerText = `⚡ 領域對決比拼中！`;
+
+            btnTouchP1.classList.add('hidden');
+            btnTouchP2.classList.add('hidden');
+
+            // 初始碰頭位置：場地變大、蟋蟀變大後，等比例調整碰頭座標，讓兩隻蟋蟀頭對頭剛好相遇
+            cricketP1.style.left = '250px';
+            cricketP2.style.right = '250px';
+
+            setTimeout(() => {
+                cricketP1.classList.add('vibrate');
+                cricketP2.classList.add('vibrate-p2');
+                startCricketChirp();
+
+                // 碰撞瞬間彈出圖案特效
+                clashEffect.classList.remove('pop');
+                void clashEffect.offsetWidth; // 強制重新觸發動畫
+                clashEffect.classList.add('pop');
+
+                // 計算推擠位移：權重提高到 8，大幅度推過中線
+                let displacement = (p1Power - 50) * 9; 
+                
+                setTimeout(() => {
+                    // 【關鍵修正】使用相對連動坐標，不管怎麼推，藍左邊與黃右邊距離永遠固定，徹底消滅交疊！
+                    let finalP1Left = 250 + displacement;
+                    let finalP2Right = 250 - displacement;
+
+                    cricketP1.style.left = finalP1Left + 'px';
+                    cricketP2.style.right = finalP2Right + 'px';
+
+                    setTimeout(() => {
+                        cricketP1.classList.remove('vibrate');
+                        cricketP2.classList.remove('vibrate-p2');
+                        stopCricketChirp(); 
+                        
+                        if (p1Power > p2Power) {
+                            // 藍贏黃輸
+                            sweatP2.style.opacity = 1;
+                            cricketP2.style.transform = 'scaleX(-1)'; // 黃方回頭逃跑
+                            
+                            cricketP2.style.transition = 'right 1.5s ease-in, transform 0.2s';
+                            setTimeout(() => { cricketP2.style.right = '-290px'; }, 50); 
+                            
+                        } else if (p2Power > p1Power) {
+                            // 黃贏藍輸
+                            sweatP1.style.opacity = 1;
+                            cricketP1.style.transform = 'scaleX(1)'; // 藍方回頭逃跑
+                            
+                            cricketP1.style.transition = 'left 1.5s ease-in, transform 0.2s';
+                            setTimeout(() => { cricketP1.style.left = '-290px'; }, 50); 
+                            
+                        } else {
+                            // 平手
+                            sweatP1.style.opacity = 1;
+                            sweatP2.style.opacity = 1;
+                            cricketP1.style.left = '135px';
+                            cricketP2.style.right = '135px';
+                        }
+
+                        setTimeout(() => {
+                            endTerritoryGame();
+                        }, 1600);
+
+                    }, 1500); 
+
+                }, 1000); 
+
+            }, 800); 
+        }
+
+        function endTerritoryGame() {
+            phase = 'end';
+            gamePhaseTxt.innerText = `對決結束`;
+            
+            const title = document.getElementById('winner-title');
+            const desc = document.getElementById('winner-desc');
+
+            if (p1Power > p2Power) {
+                title.innerText = '👑 藍方 成功捍衛主權！';
+                title.style.color = '#3498db';
+                desc.innerText = `藍方以 ${p1Power}% 的強大氣勢壓制對手！黃方蟋蟀見勢不妙，流著汗安全撤退了。`;
+            } else if (p2Power > p1Power) {
+                title.innerText = '👑 黃方 成功捍衛主權！';
+                title.style.color = '#e67e22';
+                desc.innerText = `黃方以 ${p2Power}% 的威猛氣勢宣示主權！藍方蟋蟀理智地選擇避開衝突，安全轉身離開。`;
+            } else {
+                title.innerText = '🤝 雙方休戰！平分秋色';
+                title.style.color = '#ffffff';
+                desc.innerText = `雙方氣勢居然正好都是 50%！兩隻蟋蟀互相敬佩對方的強壯，各自退後一步，和平共享這個領域。`;
+            }
+
+            endScreen.classList.remove('hidden');
+        }
+
+        function resetGame() {
+            endScreen.classList.add('hidden');
+            startScreen.classList.remove('hidden');
+            gamePhaseTxt.innerText = `準備對決`;
+        }
+    </script>
+</body>
+</html>
