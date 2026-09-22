@@ -14,8 +14,16 @@
             display: flex;
             flex-direction: column;
             align-items: center;
+            justify-content: center;
+            min-height: 100vh;
             overflow: hidden;
             user-select: none;
+        }
+
+        /* 縮放外層：依螢幕大小自動把遊戲整個等比例縮放，手機、平板都能完整顯示 */
+        #game-scale-wrapper {
+            position: relative;
+            margin-top: 10px;
         }
 
         #game-container {
@@ -23,12 +31,12 @@
             height: 760px;
             background: linear-gradient(#c9f7c0, #6fcf6f);
             position: relative;
-            margin-top: 20px;
             border: 10px solid #f2a154;
             border-radius: 30px;
             box-shadow: 0 12px 24px rgba(0,0,0,0.3);
             touch-action: manipulation;
             overflow: hidden;
+            transform-origin: top left;
         }
 
         h1 {
@@ -265,6 +273,7 @@
 </head>
 <body>
 
+    <div id="game-scale-wrapper">
     <div id="game-container">
         <div class="status-bar">
             <div style="color: #3498db;">藍方 (A連打)</div>
@@ -318,8 +327,30 @@
             <button class="btn" onclick="resetGame()">重新捍衛領域</button>
         </div>
     </div>
+    </div>
 
     <script>
+        // ===== 自動縮放：讓固定尺寸的遊戲畫面依裝置螢幕大小完整縮放顯示 =====
+        const GAME_BASE_WIDTH = 900;
+        const GAME_BASE_HEIGHT = 760;
+        const scaleWrapper = document.getElementById('game-scale-wrapper');
+        const scaleTarget = document.getElementById('game-container');
+
+        function fitGameToScreen() {
+            const margin = 16; // 螢幕邊緣留白
+            const availableWidth = window.innerWidth - margin;
+            const availableHeight = window.innerHeight - margin;
+            const scale = Math.min(availableWidth / GAME_BASE_WIDTH, availableHeight / GAME_BASE_HEIGHT);
+
+            scaleTarget.style.transform = `scale(${scale})`;
+            scaleWrapper.style.width = (GAME_BASE_WIDTH * scale) + 'px';
+            scaleWrapper.style.height = (GAME_BASE_HEIGHT * scale) + 'px';
+        }
+
+        window.addEventListener('resize', fitGameToScreen);
+        window.addEventListener('orientationchange', () => setTimeout(fitGameToScreen, 100));
+        fitGameToScreen();
+
         const gamePhaseTxt = document.getElementById('game-phase-txt');
         const barP1 = document.getElementById('bar-p1');
         const barP2 = document.getElementById('bar-p2');
